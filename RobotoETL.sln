@@ -1,0 +1,43 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.11.35303.130
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "RobotoETL.Producer", "RobotoETL.Producer\RobotoETL.Producer.csproj", "{15C37CC7-6E71-46FB-87EC-93171A004B87}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RobotoETL.Kafka", "RobotoETL.Kafka\RobotoETL.Kafka.csproj", "{4EF7B3A7-3B14-48F8-8945-8EBF2C693888}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RobotoETL.Model", "RobotoETL.Model\RobotoETL.Model.csproj", "{19D6146A-880F-4F6A-809A-21B9A9313F81}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RobotoETL.Consumer", "RobotoETL.Consumer\RobotoETL.Consumer.csproj", "{31CF2269-9807-4CFF-86E9-BD3CEEA72D50}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{15C37CC7-6E71-46FB-87EC-93171A004B87}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{15C37CC7-6E71-46FB-87EC-93171A004B87}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{15C37CC7-6E71-46FB-87EC-93171A004B87}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{15C37CC7-6E71-46FB-87EC-93171A004B87}.Release|Any CPU.Build.0 = Release|Any CPU
+		{4EF7B3A7-3B14-48F8-8945-8EBF2C693888}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{4EF7B3A7-3B14-48F8-8945-8EBF2C693888}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{4EF7B3A7-3B14-48F8-8945-8EBF2C693888}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{4EF7B3A7-3B14-48F8-8945-8EBF2C693888}.Release|Any CPU.Build.0 = Release|Any CPU
+		{19D6146A-880F-4F6A-809A-21B9A9313F81}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{19D6146A-880F-4F6A-809A-21B9A9313F81}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{19D6146A-880F-4F6A-809A-21B9A9313F81}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{19D6146A-880F-4F6A-809A-21B9A9313F81}.Release|Any CPU.Build.0 = Release|Any CPU
+		{31CF2269-9807-4CFF-86E9-BD3CEEA72D50}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{31CF2269-9807-4CFF-86E9-BD3CEEA72D50}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{31CF2269-9807-4CFF-86E9-BD3CEEA72D50}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{31CF2269-9807-4CFF-86E9-BD3CEEA72D50}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {30F9B3B1-F389-4B25-925B-330C1E77ADF9}
+	EndGlobalSection
+EndGlobal
