@@ -12,7 +12,7 @@ namespace RobotoETL.Kafka.Services
         private readonly IProducer<string, string> _producer;
         private IKafkaSettings _kafkaSettings;
 
-        private IConsumer<Ignore, string> _consumer;
+        private IConsumer<Ignore, string>? _consumer;
         private IKafkaEventConsumerService? _eventConsumerService;
         private readonly List<string> _events = new List<string>();
 
@@ -71,16 +71,15 @@ namespace RobotoETL.Kafka.Services
                 {
                     // Since a cooperative assignor (CooperativeSticky) has been configured, the
                     // partition assignment is incremental (adds partitions to any existing assignment).
-                    Console.WriteLine(
-                        "Partitions incrementally assigned: [" +
-                        string.Join(',', partitions.Select(p => p.Partition.Value)) +
-                        "], all: [" +
-                        string.Join(',', c.Assignment.Concat(partitions).Select(p => p.Partition.Value)) +
-                        "]");
 
                     // Possibly manually specify start offsets by returning a list of topic/partition/offsets
                     // to assign to, e.g.:
                     // return partitions.Select(tp => new TopicPartitionOffset(tp, externalOffsets[tp]));
+
+                    var particoesAtribuidas = string.Join(',', partitions.Select(p => p.Partition.Value));
+                    var todasParticoes = string.Join(',', c.Assignment.Concat(partitions).Select(p => p.Partition.Value));
+                    _logger.LogInformation("Partições atribuidas incrementalmente: [{particoesAtribuidas}], todas as particoes: [{todasParticoes}]", particoesAtribuidas, todasParticoes);
+
                 })
                 .SetPartitionsRevokedHandler((c, partitions) =>
                 {
@@ -141,7 +140,7 @@ namespace RobotoETL.Kafka.Services
 
                                 // Cheguei ao final do tópico, se houver itens pendente na lista de events
                                 // faz a execução como se tivesse atingido o limite do lote
-                                ProcessConsumerEvent(30000, cts.Token); //Não coloco await para não travar a Thread.
+                                _ = ProcessConsumerEventAsync(30000, cts.Token); //Não coloco await para não travar a Thread.
                                 continue;
                             }
 
@@ -152,7 +151,7 @@ namespace RobotoETL.Kafka.Services
 
                             // Verifica se atingiu o tamanho máximo do lote
                             if (_events.Count >= batchSize)
-                                ProcessConsumerEvent(0, CancellationToken.None).Wait(); //Executa o método de imediato
+                                ProcessConsumerEventAsync(0, CancellationToken.None).Wait(); //Executa o método de imediato
                         }
                         catch (ConsumeException e)
                         {
@@ -179,17 +178,14 @@ namespace RobotoETL.Kafka.Services
         ///  
         ///  token, caso eu receba novos eventos posso efetuar a pausa dessa execução.
         /// </summary>
-        private async Task ProcessConsumerEvent(int delayInMilliseconds, CancellationToken token) 
+        private async Task ProcessConsumerEventAsync(int delayInMilliseconds, CancellationToken token) 
         {
             try
             {
-                Console.WriteLine("esperando pra fazer algo...");
                 await Task.Delay(delayInMilliseconds, token); // Wait for delay or cancellation
-                Console.WriteLine("já esperei...");
                 if (!token.IsCancellationRequested)
                 {
-
-                    if (_eventConsumerService == null)
+                    if (_eventConsumerService == null || _consumer == null)
                         return;
 
                     // Não posso fazer commit se não tiver feito a leitura de alguma mensagem

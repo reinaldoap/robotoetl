@@ -50,6 +50,8 @@ services:
 
   roboto-consumer:
      container_name: roboto-consumer
+     #deploy:
+     # replicas: 3
      build:
         dockerfile: './RobotoETL.Consumer/Dockerfile'
      environment:
@@ -58,6 +60,7 @@ services:
         - kafka
      networks:
         - roboto-network
+
 
 networks:
   roboto-network:
