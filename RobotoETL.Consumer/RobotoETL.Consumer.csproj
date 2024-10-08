@@ -15,5 +15,6 @@
 
   <ItemGroup>
     <ProjectReference Include="..\RobotoETL.Kafka\RobotoETL.Kafka.csproj" />
+    <ProjectReference Include="..\RobotoETL.Model\RobotoETL.Model.csproj" />
   </ItemGroup>
 </Project>

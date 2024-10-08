@@ -1,5 +1,9 @@
 ﻿using RobotoETL.Consumer.Services.Contracts;
 using RobotoETL.Kafka.Services.Contracts;
+using RobotoETL.Model;
+using System;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace RobotoETL.Consumer.Services
 {
@@ -34,7 +38,36 @@ namespace RobotoETL.Consumer.Services
         */
         public void OnConsume(List<string> events)
         {
-            _logger.LogInformation("Recebi uma lista com {total} itens para fazer alguma coisa", events.Count);
+            Random random = new Random();
+
+            _logger.LogInformation("Recebi uma lista com {total} pessoas para gerar prontuários médicos", events.Count);
+            var prontuarios = new List<Prontuario>();
+
+            foreach (var json in events) 
+            {
+                var pessoa = JsonSerializer.Deserialize<Pessoa>(json);
+                if(pessoa == null)
+                    continue;
+                var prontuario = new Prontuario() { Paciente = pessoa };
+
+                //Definindo a pressão cardiaca
+                int number1 = random.Next(6, 21); 
+                int number2 = random.Next(6, 21);
+
+                // Encontrando o mínimo e o máximo
+                prontuario.PressaoCardiacaMin = Math.Min(number1, number2);
+                prontuario.PressaoCardiacaMax = Math.Max(number1, number2);
+
+                prontuario.DataConsulta = DateTime.Now;
+
+                prontuario.AvaliacaoMedica = $"O Paceinte {pessoa.Nome}, foi avaliado com a pressao {prontuario.PressaoCardiacaMin}/{prontuario.PressaoCardiacaMax} e está liberado para o trabalho";
+
+                prontuarios.Add(prontuario);
+
+                //Faz o envio para alguma api/servico dessa informação
+            }
+
+
         }
 
     }

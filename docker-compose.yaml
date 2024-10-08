@@ -20,11 +20,40 @@ services:
       ZOOKEEPER_AUTOPURGE_PURGE_INTERVAL: "0"
     volumes:
       - ./data/kafka/data:/var/lib/kafka/data
+      
+  redpanda-console:
+    container_name: redpanda
+    image: docker.redpanda.com/vectorized/console:latest
+    restart: on-failure
+    entrypoint: /bin/sh
+    command: -c "echo \"$$CONSOLE_CONFIG_FILE\" > /tmp/config.yml; /app/console"
+    ports:
+      - "8021:8080"
+    networks:
+      - roboto-network
+    environment:
+      CONFIG_FILEPATH: /tmp/config.yml
+      CONSOLE_CONFIG_FILE: |
+        kafka:
+          brokers: ["kafka:29092"]
+    depends_on:
+      - "kafka"
 
   roboto-producer:
      container_name: roboto-producer
      build:
         dockerfile: './RobotoETL.Producer/Dockerfile'
+     depends_on:
+        - kafka
+     networks:
+        - roboto-network
+
+  roboto-consumer:
+     container_name: roboto-consumer
+     build:
+        dockerfile: './RobotoETL.Consumer/Dockerfile'
+     environment:
+        - KafkaSettings__BootstrapServers=kafka:29092
      depends_on:
         - kafka
      networks:

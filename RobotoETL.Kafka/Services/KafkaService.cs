@@ -3,7 +3,6 @@ using Confluent.Kafka;
 using Microsoft.Extensions.Logging;
 using RobotoETL.Kafka.Services.Contracts;
 using RobotoETL.Kafka.Settings.Contracts;
-using System.Threading;
 
 namespace RobotoETL.Kafka.Services
 {
@@ -12,6 +11,11 @@ namespace RobotoETL.Kafka.Services
         private readonly ILogger<KafkaService> _logger;
         private readonly IProducer<string, string> _producer;
         private IKafkaSettings _kafkaSettings;
+
+        private IConsumer<Ignore, string> _consumer;
+        private IKafkaEventConsumerService? _eventConsumerService;
+        private readonly List<string> _events = new List<string>();
+
 
         public KafkaService(ILogger<KafkaService> logger, IKafkaSettings kafkaSettings)
         {
@@ -43,9 +47,9 @@ namespace RobotoETL.Kafka.Services
             }
         }
 
-        public void SetConsumer(IKafkaEventConsumerService eventConsumer) 
+        public void SetConsumer(IKafkaEventConsumerService eventConsumerService) 
         {
-            if (eventConsumer == null)
+            if (eventConsumerService == null)
             {
                 _logger.LogError("Nenhum consumidor de eventos foi definido");
                 return;
@@ -57,8 +61,10 @@ namespace RobotoETL.Kafka.Services
                 return;
             }
 
+            _eventConsumerService = eventConsumerService;
 
-            using (var consumer = new ConsumerBuilder<Ignore, string>(BuildConsumerConfig())
+
+            using (_consumer = new ConsumerBuilder<Ignore, string>(BuildConsumerConfig())
                 // Note: All handlers are called on the main .Consume thread.
                 .SetErrorHandler((_, e) => Console.WriteLine($"Error: {e.Reason}"))
                 .SetPartitionsAssignedHandler((c, partitions) =>
@@ -96,45 +102,57 @@ namespace RobotoETL.Kafka.Services
                 })
                 .Build()) 
             {
-                //List<ConsumeResult<Ignore, string>> batch = new List<ConsumeResult<Ignore, string>>();
-                List<string> events = new();
+                
                 int batchSize = 100; // Number of messages in each batch
 
-                consumer.Subscribe(eventConsumer.ConsumeTopic);
+                _consumer.Subscribe(_eventConsumerService.ConsumeTopic);
 
+                var cancellationTokenSource = new CancellationTokenSource();
+
+
+                //Permite encerrar a aplicação com o Ctrl + C
+                Console.CancelKeyPress += (_, e) =>
+                {
+                    e.Cancel = true; // Prevent the process from terminating immediately
+                    cancellationTokenSource.Cancel(); // Signal cancellation to stop consuming
+                };
+
+                var cts = new CancellationTokenSource();
 
                 try
                 {
-                    while (true)
+
+                    // Utilizando o cancelation Token no while consigo parar a aplicação com o Ctrl+C ou programaticalmente.
+                    while (!cancellationTokenSource.Token.IsCancellationRequested)
                     {
                         try
                         {
-                            var cancellationTokenSource = new CancellationTokenSource();
-                            cancellationTokenSource.CancelAfter(TimeSpan.FromSeconds(5)); // Consume for 5 seconds
+                            var consumeResult = _consumer.Consume();
+                            cts.Cancel(); //Cancela a execução anterior do 'ProcessConsumerEvent()'
+                            cts.Dispose();
+                            cts = new CancellationTokenSource();
 
-
-                            var consumeResult = consumer.Consume(cancellationTokenSource.Token);
 
                             if (consumeResult.IsPartitionEOF) //Chegou no final da partição
                             {
                                 Console.WriteLine(
                                     $"Reached end of topic {consumeResult.Topic}, partition {consumeResult.Partition}, offset {consumeResult.Offset}.");
 
+
+                                // Cheguei ao final do tópico, se houver itens pendente na lista de events
+                                // faz a execução como se tivesse atingido o limite do lote
+                                ProcessConsumerEvent(30000, cts.Token); //Não coloco await para não travar a Thread.
                                 continue;
                             }
 
-                            Console.WriteLine($"Received message at {consumeResult.TopicPartitionOffset}: {consumeResult.Message.Value}");
-                            events.Add(consumeResult.Message.Value);
+                           
 
-                            // Check if batch is full
-                            if (events.Count >= batchSize)
-                            {
-                                // Process the batch of messages
-                                Console.WriteLine($"Processing batch of {events.Count} messages");
-                                eventConsumer.OnConsume(events);
-                                consumer.Commit(); //.StoreOffset(consumeResult);
-                                events.Clear();
-                            }
+                            Console.WriteLine($"Received message at {consumeResult.TopicPartitionOffset}: {consumeResult.Message.Value}");
+                            _events.Add(consumeResult.Message.Value);
+
+                            // Verifica se atingiu o tamanho máximo do lote
+                            if (_events.Count >= batchSize)
+                                ProcessConsumerEvent(0, CancellationToken.None).Wait(); //Executa o método de imediato
                         }
                         catch (ConsumeException e)
                         {
@@ -145,10 +163,55 @@ namespace RobotoETL.Kafka.Services
                 catch (OperationCanceledException)
                 {
                     Console.WriteLine("Closing consumer.");
-                    consumer.Close();
+                    _consumer.Close();
                 }
 
             }
+        }
+
+        /// <summary>
+        ///  Faz o serviço de consumer executar o que deve ser feito e em caso de falha nessa execução
+        ///  vai lançar uma execption caindo no catch do ConsumeException
+        ///  não efetuando o commit.
+        ///  
+        ///  delayInMilliseconds, usado em caso a aplicação fique muito tempo sem receber msg, 
+        ///  dessa maneira não fica msg parada no array de events
+        ///  
+        ///  token, caso eu receba novos eventos posso efetuar a pausa dessa execução.
+        /// </summary>
+        private async Task ProcessConsumerEvent(int delayInMilliseconds, CancellationToken token) 
+        {
+            try
+            {
+                Console.WriteLine("esperando pra fazer algo...");
+                await Task.Delay(delayInMilliseconds, token); // Wait for delay or cancellation
+                Console.WriteLine("já esperei...");
+                if (!token.IsCancellationRequested)
+                {
+
+                    if (_eventConsumerService == null)
+                        return;
+
+                    // Não posso fazer commit se não tiver feito a leitura de alguma mensagem
+                    // caso contrário gera uma Exception "Confluent.Kafka.KafkaException: 'Local: No offset stored'"
+                    // portanto devo veriricar o array de eventos antes de efetuar o commit
+                    if (_events.Any()) 
+                    {
+                        _eventConsumerService.OnConsume(_events);
+                        _consumer.Commit();
+                        _events.Clear();
+                    }
+                   
+                }
+            }
+            catch (TaskCanceledException)
+            {
+                // Handle the task cancellation
+                Console.WriteLine("Timer cancelled before event was triggered.");
+            }
+
+
+           
         }
 
 

@@ -44,7 +44,7 @@ namespace RobotoETL.Producer.Services
                 var pessoaJson = JsonSerializer.Serialize(pessoa);
                 _logger.LogInformation("Emitindo evento para: {Nome}", pessoa.Nome);
 
-                await _kafkaService.ProduceAsync("topic-pessoas-2", pessoa.Cpf, pessoaJson);
+                await _kafkaService.ProduceAsync("topic-pessoas", pessoa.Cpf, pessoaJson);
                 
             }
         }
