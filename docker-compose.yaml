@@ -43,8 +43,10 @@ services:
      container_name: roboto-producer
      build:
         dockerfile: './RobotoETL.Producer/Dockerfile'
+     environment:
+       - KafkaSettings__BootstrapServers=kafka:29092
      depends_on:
-        - kafka
+        - redpanda-console
      networks:
         - roboto-network
 
@@ -57,7 +59,7 @@ services:
      environment:
         - KafkaSettings__BootstrapServers=kafka:29092
      depends_on:
-        - kafka
+        - redpanda-console
      networks:
         - roboto-network
 

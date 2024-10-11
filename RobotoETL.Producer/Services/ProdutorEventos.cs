@@ -38,7 +38,7 @@ namespace RobotoETL.Producer.Services
 
         public async Task ProduzirEventosAsync()
         {
-            for(var i =0; i < 22; i++) 
+            for(var i =0; i < 1022; i++) 
             {
                 var pessoa = _faker.Generate();
                 var pessoaJson = JsonSerializer.Serialize(pessoa);

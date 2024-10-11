@@ -19,7 +19,7 @@ namespace RobotoETL.Kafka.Services
 
         public KafkaService(ILogger<KafkaService> logger, IKafkaSettings kafkaSettings)
         {
-            _logger = logger;
+            _logger = logger; 
             _kafkaSettings = kafkaSettings;
             _producer = new ProducerBuilder<string, string>(
                  new ProducerConfig
@@ -66,7 +66,7 @@ namespace RobotoETL.Kafka.Services
 
             using (_consumer = new ConsumerBuilder<Ignore, string>(BuildConsumerConfig())
                 // Note: All handlers are called on the main .Consume thread.
-                .SetErrorHandler((_, e) => Console.WriteLine($"Error: {e.Reason}"))
+                .SetErrorHandler((_, e) => _logger.LogError("Erro Kafka, {reason}", e.Reason))
                 .SetPartitionsAssignedHandler((c, partitions) =>
                 {
                     // Since a cooperative assignor (CooperativeSticky) has been configured, the
@@ -78,7 +78,7 @@ namespace RobotoETL.Kafka.Services
 
                     var particoesAtribuidas = string.Join(',', partitions.Select(p => p.Partition.Value));
                     var todasParticoes = string.Join(',', c.Assignment.Concat(partitions).Select(p => p.Partition.Value));
-                    _logger.LogInformation("Partições atribuidas incrementalmente: [{particoesAtribuidas}], todas as particoes: [{todasParticoes}]", particoesAtribuidas, todasParticoes);
+                    _logger.LogDebug("Partições atribuidas incrementalmente: [{particoesAtribuidas}], todas as particoes: [{todasParticoes}]", particoesAtribuidas, todasParticoes);
 
                 })
                 .SetPartitionsRevokedHandler((c, partitions) =>
@@ -86,18 +86,16 @@ namespace RobotoETL.Kafka.Services
                     // Since a cooperative assignor (CooperativeSticky) has been configured, the revoked
                     // assignment is incremental (may remove only some partitions of the current assignment).
                     var remaining = c.Assignment.Where(atp => partitions.Where(rtp => rtp.TopicPartition == atp).Count() == 0);
-                    Console.WriteLine(
-                        "Partitions incrementally revoked: [" +
-                        string.Join(',', partitions.Select(p => p.Partition.Value)) +
-                        "], remaining: [" +
-                        string.Join(',', remaining.Select(p => p.Partition.Value)) +
-                        "]");
+                    var revokedPartitions = partitions.Select(p => p.Partition.Value);
+                    var remainingPartitions  = remaining.Select(p => p.Partition.Value);
+                    _logger.LogDebug("Particoes incrementalmente revogadas: [{revokedPartitions}], particoes restantes: [{remaningPartitions}]", revokedPartitions, remainingPartitions);
                 })
                 .SetPartitionsLostHandler((c, partitions) =>
                 {
                     // The lost partitions handler is called when the consumer detects that it has lost ownership
                     // of its assignment (fallen out of the group).
-                    Console.WriteLine($"Partitions were lost: [{string.Join(", ", partitions)}]");
+                    var lotstPartitions = string.Join(", ", partitions);
+                    _logger.LogDebug("Particoes foram perdidas: [{lostPartitions}]", lotstPartitions);
                 })
                 .Build()) 
             {
@@ -120,7 +118,6 @@ namespace RobotoETL.Kafka.Services
 
                 try
                 {
-
                     // Utilizando o cancelation Token no while consigo parar a aplicação com o Ctrl+C ou programaticalmente.
                     while (!cancellationTokenSource.Token.IsCancellationRequested)
                     {
@@ -134,9 +131,8 @@ namespace RobotoETL.Kafka.Services
 
                             if (consumeResult.IsPartitionEOF) //Chegou no final da partição
                             {
-                                Console.WriteLine(
-                                    $"Reached end of topic {consumeResult.Topic}, partition {consumeResult.Partition}, offset {consumeResult.Offset}.");
-
+                                _logger.LogDebug("Reached end of topic {topic}, partition {partition}, offset {Offset}.", 
+                                    consumeResult.Topic, consumeResult.Partition, consumeResult.Offset);
 
                                 // Cheguei ao final do tópico, se houver itens pendente na lista de events
                                 // faz a execução como se tivesse atingido o limite do lote
@@ -144,9 +140,7 @@ namespace RobotoETL.Kafka.Services
                                 continue;
                             }
 
-                           
-
-                            Console.WriteLine($"Received message at {consumeResult.TopicPartitionOffset}: {consumeResult.Message.Value}");
+                            _logger.LogInformation("Received message at {TopicPartitionOffset}: {Value}",  consumeResult.TopicPartitionOffset, consumeResult.Message.Value);
                             _events.Add(consumeResult.Message.Value);
 
                             // Verifica se atingiu o tamanho máximo do lote
@@ -155,22 +149,21 @@ namespace RobotoETL.Kafka.Services
                         }
                         catch (ConsumeException e)
                         {
-                            Console.WriteLine($"Consume error: {e.Error.Reason}");
+                            _logger.LogError("Falha ao consumir kafka evento | {reason}", e.Error.Reason);
                         }
                     }
                 }
                 catch (OperationCanceledException)
                 {
-                    Console.WriteLine("Closing consumer.");
+                    _logger.LogError("Kafka OperationCanceledException, fechando o consumer.");
                     _consumer.Close();
                 }
-
             }
         }
 
         /// <summary>
         ///  Faz o serviço de consumer executar o que deve ser feito e em caso de falha nessa execução
-        ///  vai lançar uma execption caindo no catch do ConsumeException
+        ///  vai lançar uma execption caindo no catch do ConsumerException
         ///  não efetuando o commit.
         ///  
         ///  delayInMilliseconds, usado em caso a aplicação fique muito tempo sem receber msg, 
@@ -197,17 +190,12 @@ namespace RobotoETL.Kafka.Services
                         _consumer.Commit();
                         _events.Clear();
                     }
-                   
                 }
             }
             catch (TaskCanceledException)
             {
-                // Handle the task cancellation
-                Console.WriteLine("Timer cancelled before event was triggered.");
+                _logger.LogDebug("Temporizador cancelado antes de engatilhar o evento.");
             }
-
-
-           
         }
 
 
