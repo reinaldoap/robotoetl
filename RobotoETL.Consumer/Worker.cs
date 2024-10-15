@@ -5,9 +5,9 @@ namespace RobotoETL.Consumer
     public class Worker : BackgroundService
     {
         private readonly ILogger<Worker> _logger;
-        private readonly IConsumidorEventos _consumidorEventos;
+        private readonly IPacientesConsumerService _consumidorEventos;
 
-        public Worker(ILogger<Worker> logger, IConsumidorEventos consumidorEventos)
+        public Worker(ILogger<Worker> logger, IPacientesConsumerService consumidorEventos)
         {
             _logger = logger;
             _consumidorEventos = consumidorEventos;
@@ -15,16 +15,8 @@ namespace RobotoETL.Consumer
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
-            /*while (!stoppingToken.IsCancellationRequested)
-            {
-                if (_logger.IsEnabled(LogLevel.Information))
-                {
-                    _logger.LogInformation("Worker running at: {time}", DateTimeOffset.Now);
-                }
-                await Task.Delay(1000, stoppingToken);
-            }*/
-
-            await _consumidorEventos.ConsumirEventosAsync();
+            _logger.LogInformation("Iniciando o consumo de eventos em: {time}", DateTimeOffset.Now);
+            await _consumidorEventos.OuvirPacientesAsync();
         }
     }
 }

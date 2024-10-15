@@ -1,27 +1,30 @@
 ﻿using RobotoETL.Consumer.Services.Contracts;
+using RobotoETL.Consumer.Settings;
 using RobotoETL.Kafka.Services.Contracts;
 using RobotoETL.Model;
 using System;
 using System.Text.Json;
-using System.Text.Json.Serialization;
 
 namespace RobotoETL.Consumer.Services
 {
-    internal class ConsumidorEventos : IConsumidorEventos, IKafkaEventConsumerService
+    internal class PacientesConsumerService : IPacientesConsumerService, IKafkaEventConsumerService
     {
-        private readonly ILogger<ConsumidorEventos> _logger;
+        private readonly ILogger<PacientesConsumerService> _logger;
         private readonly IKafkaService _kafkaService;
+        private readonly PacientesConsumerSettings _settings;
 
-        public ConsumidorEventos(ILogger<ConsumidorEventos> logger, IKafkaService kafkaService)
+        public PacientesConsumerService(ILogger<PacientesConsumerService> logger, IKafkaService kafkaService,
+            PacientesConsumerSettings settings)
         {
             _logger = logger;
             _kafkaService = kafkaService;
+            _settings = settings;
             
         }
 
-        public string ConsumeTopic => "topic-pessoas";
+        public string ConsumeTopic => _settings.Topico;
 
-        public Task ConsumirEventosAsync()
+        public Task OuvirPacientesAsync()
         {
             _logger.LogInformation("Iniciando o consumo de eventos...");
 

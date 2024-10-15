@@ -39,14 +39,31 @@ services:
     depends_on:
       - "kafka"
 
+  kafka-init:
+    container_name: kafka-init
+    image: obsidiandynamics/kafka
+    depends_on:
+     - redpanda-console
+    #entrypoint: ["tail", "-f", "/dev/null"]
+    networks:
+      - roboto-network
+    entrypoint: [
+      "sh", "-c",
+      "/opt/kafka/bin/kafka-topics.sh --create --topic tpc-pacientes --partitions 3 --replication-factor 1 --bootstrap-server kafka:29092 && sleep 600"
+     ]
+
+  
+
   roboto-producer:
      container_name: roboto-producer
      build:
         dockerfile: './RobotoETL.Producer/Dockerfile'
      environment:
        - KafkaSettings__BootstrapServers=kafka:29092
+       - PacientesProducerSettings__Topico=tpc-pacientes
+       - PacientesProducerSettings__Quantidade=3000
      depends_on:
-        - redpanda-console
+        - kafka-init
      networks:
         - roboto-network
 
@@ -58,8 +75,9 @@ services:
         dockerfile: './RobotoETL.Consumer/Dockerfile'
      environment:
         - KafkaSettings__BootstrapServers=kafka:29092
+        - PacientesConsumerSettings__Topico=tpc-pacientes
      depends_on:
-        - redpanda-console
+        - roboto-producer
      networks:
         - roboto-network
 
