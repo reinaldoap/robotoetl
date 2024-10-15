@@ -75,6 +75,9 @@ services:
         dockerfile: './RobotoETL.Consumer/Dockerfile'
      environment:
         - KafkaSettings__BootstrapServers=kafka:29092
+        - KafkaSettings__AutoOffsetReset=Earliest
+        - KafkaSettings__EventsBatchSize=250
+        - KafkaSettings__TriggerBatchDelayMs=29000
         - PacientesConsumerSettings__Topico=tpc-pacientes
      depends_on:
         - roboto-producer

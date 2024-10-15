@@ -19,7 +19,7 @@ namespace RobotoETL.Kafka.Services
 
         public KafkaService(ILogger<KafkaService> logger, IKafkaSettings kafkaSettings)
         {
-            _logger = logger; 
+            _logger = logger;
             _kafkaSettings = kafkaSettings;
             _producer = new ProducerBuilder<string, string>(
                  new ProducerConfig
@@ -47,7 +47,7 @@ namespace RobotoETL.Kafka.Services
             }
         }
 
-        public void SetConsumer(IKafkaEventConsumerService eventConsumerService) 
+        public void SetConsumer(IKafkaEventConsumerService eventConsumerService)
         {
             if (eventConsumerService == null)
             {
@@ -87,7 +87,7 @@ namespace RobotoETL.Kafka.Services
                     // assignment is incremental (may remove only some partitions of the current assignment).
                     var remaining = c.Assignment.Where(atp => partitions.Where(rtp => rtp.TopicPartition == atp).Count() == 0);
                     var revokedPartitions = partitions.Select(p => p.Partition.Value);
-                    var remainingPartitions  = remaining.Select(p => p.Partition.Value);
+                    var remainingPartitions = remaining.Select(p => p.Partition.Value);
                     _logger.LogDebug("Particoes incrementalmente revogadas: [{revokedPartitions}], particoes restantes: [{remaningPartitions}]", revokedPartitions, remainingPartitions);
                 })
                 .SetPartitionsLostHandler((c, partitions) =>
@@ -97,11 +97,8 @@ namespace RobotoETL.Kafka.Services
                     var lotstPartitions = string.Join(", ", partitions);
                     _logger.LogDebug("Particoes foram perdidas: [{lostPartitions}]", lotstPartitions);
                 })
-                .Build()) 
+                .Build())
             {
-                
-                int batchSize = 100; // Number of messages in each batch
-
                 _consumer.Subscribe(_eventConsumerService.ConsumeTopic);
 
                 var cancellationTokenSource = new CancellationTokenSource();
@@ -131,20 +128,20 @@ namespace RobotoETL.Kafka.Services
 
                             if (consumeResult.IsPartitionEOF) //Chegou no final da partição
                             {
-                                _logger.LogDebug("Reached end of topic {topic}, partition {partition}, offset {Offset}.", 
+                                _logger.LogDebug("Reached end of topic {topic}, partition {partition}, offset {Offset}.",
                                     consumeResult.Topic, consumeResult.Partition, consumeResult.Offset);
 
                                 // Cheguei ao final do tópico, se houver itens pendente na lista de events
                                 // faz a execução como se tivesse atingido o limite do lote
-                                _ = ProcessConsumerEventAsync(30000, cts.Token); //Não coloco await para não travar a Thread.
+                                _ = ProcessConsumerEventAsync(_kafkaSettings.TriggerBatchDelayMs, cts.Token); //Não coloco await para não travar a Thread.
                                 continue;
                             }
 
-                            _logger.LogInformation("Received message at {TopicPartitionOffset}: {Value}",  consumeResult.TopicPartitionOffset, consumeResult.Message.Value);
+                            _logger.LogInformation("Received message at {TopicPartitionOffset}: {Value}", consumeResult.TopicPartitionOffset, consumeResult.Message.Value);
                             _events.Add(consumeResult.Message.Value);
 
                             // Verifica se atingiu o tamanho máximo do lote
-                            if (_events.Count >= batchSize)
+                            if (_events.Count >= _kafkaSettings.EventsBatchSize)
                                 ProcessConsumerEventAsync(0, CancellationToken.None).Wait(); //Executa o método de imediato
                         }
                         catch (ConsumeException e)
@@ -171,7 +168,7 @@ namespace RobotoETL.Kafka.Services
         ///  
         ///  token, caso eu receba novos eventos posso efetuar a pausa dessa execução.
         /// </summary>
-        private async Task ProcessConsumerEventAsync(int delayInMilliseconds, CancellationToken token) 
+        private async Task ProcessConsumerEventAsync(int delayInMilliseconds, CancellationToken token)
         {
             try
             {
@@ -184,7 +181,7 @@ namespace RobotoETL.Kafka.Services
                     // Não posso fazer commit se não tiver feito a leitura de alguma mensagem
                     // caso contrário gera uma Exception "Confluent.Kafka.KafkaException: 'Local: No offset stored'"
                     // portanto devo veriricar o array de eventos antes de efetuar o commit
-                    if (_events.Any()) 
+                    if (_events.Any())
                     {
                         _eventConsumerService.OnConsume(_events);
                         _consumer.Commit();
@@ -199,7 +196,7 @@ namespace RobotoETL.Kafka.Services
         }
 
 
-        private ConsumerConfig BuildConsumerConfig() 
+        private ConsumerConfig BuildConsumerConfig()
         {
             var config = new ConsumerConfig
             {
@@ -209,7 +206,7 @@ namespace RobotoETL.Kafka.Services
                 EnableAutoCommit = false,
                 StatisticsIntervalMs = 5000,
                 SessionTimeoutMs = 6000,
-                AutoOffsetReset = AutoOffsetReset.Earliest,
+                AutoOffsetReset = AutoOffsetResetFromConfig,
                 EnablePartitionEof = true,
                 // A good introduction to the CooperativeSticky assignor and incremental rebalancing:
                 // https://www.confluent.io/blog/cooperative-rebalancing-in-kafka-streams-consumer-ksqldb/
@@ -218,5 +215,9 @@ namespace RobotoETL.Kafka.Services
 
             return config;
         }
+
+        private AutoOffsetReset AutoOffsetResetFromConfig { get =>
+                    _kafkaSettings.AutoOffsetReset == "Earliest" ?
+                        AutoOffsetReset.Earliest : AutoOffsetReset.Latest; }
     }
 }

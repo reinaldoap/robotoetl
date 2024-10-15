@@ -8,9 +8,8 @@ namespace RobotoETL.Kafka.Settings
         public required string GroupId { get; set; }
         public required string BootstrapServers { get; set; }
         public string? AutoOffsetReset { get; set; }
-        public bool? EnableAutoCommit { get; set; }
-        public int? AutoCommitInterval { get; set; }
-
-        public bool HasConsumerProps => !string.IsNullOrWhiteSpace(AutoOffsetReset) && EnableAutoCommit.HasValue;
+        public bool HasConsumerProps => !string.IsNullOrWhiteSpace(AutoOffsetReset);
+        public int EventsBatchSize { get; set; } = 100;
+        public int TriggerBatchDelayMs { get; set; } = 30000;
     }
 }
