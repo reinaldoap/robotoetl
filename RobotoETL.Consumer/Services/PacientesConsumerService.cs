@@ -41,7 +41,7 @@ namespace RobotoETL.Consumer.Services
         */
         public void OnConsume(List<string> events)
         {
-            Random random = new Random();
+            
 
             _logger.LogInformation("Recebi uma lista com {total} pessoas para gerar prontuários médicos", events.Count);
             var prontuarios = new List<Prontuario>();
@@ -53,25 +53,26 @@ namespace RobotoETL.Consumer.Services
                     continue;
                 var prontuario = new Prontuario() { Paciente = pessoa };
 
-                //Definindo a pressão cardiaca
-                int number1 = random.Next(6, 21); 
-                int number2 = random.Next(6, 21);
-
-                // Encontrando o mínimo e o máximo
-                prontuario.PressaoCardiacaMin = Math.Min(number1, number2);
-                prontuario.PressaoCardiacaMax = Math.Max(number1, number2);
-
+                prontuario.Cardio().Imc();
                 prontuario.DataConsulta = DateTime.Now;
+                prontuario.AvaliacaoMedica = $"O paciente {pessoa.Nome}, foi avaliado com a pressao " + 
+                            $" {prontuario.PressaoCardiacaMin}/{prontuario.PressaoCardiacaMax} e {prontuario.ResultadoImc}." +
+                            " estando portando liberado para o trabalho ";
 
-                prontuario.AvaliacaoMedica = $"O Paceinte {pessoa.Nome}, foi avaliado com a pressao {prontuario.PressaoCardiacaMin}/{prontuario.PressaoCardiacaMax} e está liberado para o trabalho";
 
+
+
+                _logger.LogInformation(JsonSerializer.Serialize(prontuario));
                 prontuarios.Add(prontuario);
 
                 //Faz o envio para alguma api/servico dessa informação
             }
-
-
         }
+
+        #region [Calculos de saude]
+
+
+        #endregion
 
     }
 }
